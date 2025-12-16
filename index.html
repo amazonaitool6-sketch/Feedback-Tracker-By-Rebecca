@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Negative Feedback Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #c0392b;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+        .top-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .btn-add {
+            background: #27ae60;
+            color: white;
+        }
+        .btn-add:hover {
+            background: #229954;
+            transform: translateY(-2px);
+        }
+        .btn-download {
+            background: #e74c3c;
+            color: white;
+        }
+        .btn-download:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+        .btn-clear {
+            background: #95a5a6;
+            color: white;
+        }
+        .btn-clear:hover {
+            background: #7f8c8d;
+        }
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+        }
+        .stat-card.pending {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+        .stat-card.resolved {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            min-width: 1600px;
+        }
+        th {
+            background: #c0392b;
+            color: white;
+            padding: 14px 10px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            white-space: nowrap;
+        }
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #e0e0e0;
+            vertical-align: middle;
+        }
+        tr:hover {
+            background: #fff5f5;
+        }
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .status-progress {
+            background: #cce5ff;
+            color: #004085;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .status-resolved {
+            background: #d4edda;
+            color: #155724;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .action-btns {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-edit, .btn-delete {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-edit {
+            background: #3498db;
+            color: white;
+        }
+        .btn-edit:hover {
+            background: #2980b9;
+        }
+        .btn-delete {
+            background: #e74c3c;
+            color: white;
+        }
+        .btn-delete:hover {
+            background: #c0392b;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .modal-content {
+            background: white;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .modal-header h2 {
+            color: #c0392b;
+            font-size: 24px;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 32px;
+            color: #999;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .close-btn:hover {
+            color: #c0392b;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #e74c3c;
+            box-shadow: 0 0 0 3px rgba(231,76,60,0.1);
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+        .btn-save {
+            background: #27ae60;
+            color: white;
+            padding: 12px 30px;
+        }
+        .btn-save:hover {
+            background: #229954;
+        }
+        .btn-cancel {
+            background: #95a5a6;
+            color: white;
+            padding: 12px 30px;
+        }
+        .btn-cancel:hover {
+            background: #7f8c8d;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        .empty-state h3 {
+            color: #666;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚠️ Customer Negative Feedback Tracker</h1>
+        <p class="subtitle">Track, Monitor & Resolve Customer Issues</p>
+        
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-number" id="totalCount">0</div>
+                <div class="stat-label">Total Feedbacks</div>
+            </div>
+            <div class="stat-card pending">
+                <div class="stat-number" id="pendingCount">0</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-card resolved">
+                <div class="stat-number" id="resolvedCount">0</div>
+                <div class="stat-label">Resolved</div>
+            </div>
+        </div>
+
+        <div class="top-actions">
+            <button class="btn btn-add" onclick="openModal()">➕ Add New Feedback</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-download" onclick="downloadExcel()">⬇️ Download Excel</button>
+                <button class="btn btn-clear" onclick="clearAll()">🗑️ Clear All</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="feedbackTable">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>Date</th>
+                        <th>Order ID</th>
+                        <th>Product/ASIN</th>
+                        <th>Customer</th>
+                        <th>Rating</th>
+                        <th>Feedback</th>
+                        <th>Issue Type</th>
+                        <th>Assigned To</th>
+                        <th>Action Taken</th>
+                        <th>Solution</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr>
+                        <td colspan="13" class="empty-state">
+                            <div class="empty-state-icon">📝</div>
+                            <h3>No feedback entries yet</h3>
+                            <p>Click "Add New Feedback" to start tracking</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="feedbackModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Feedback</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            
+            <form id="feedbackForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Date Received *</label>
+                        <input type="date" id="dateReceived" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Order ID *</label>
+                        <input type="text" id="orderId" placeholder="123-4567890-1234567" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Product Name/ASIN *</label>
+                        <input type="text" id="productName" placeholder="LED Strip - B08XYZ123" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Customer Name *</label>
+                        <input type="text" id="customerName" placeholder="John Doe" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Rating *</label>
+                        <select id="rating" required>
+                            <option value="">Select Rating</option>
+                            <option value="1 Star">1 Star</option>
+                            <option value="2 Star">2 Star</option>
+                            <option value="3 Star">3 Star</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Issue Category *</label>
+                        <select id="issueCategory" required>
+                            <option value="">Select Category</option>
+                            <option value="Product Quality">Product Quality</option>
+                            <option value="Shipping Error">Shipping Error</option>
+                            <option value="Wrong Product">Wrong Product</option>
+                            <option value="Description Mismatch">Description Mismatch</option>
+                            <option value="Packaging Damage">Packaging Damage</option>
+                            <option value="Missing Parts">Missing Parts</option>
+                            <option value="Late Delivery">Late Delivery</option>
+                            <option value="Poor Service">Poor Service</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label>Feedback/Review Text *</label>
+                        <textarea id="feedbackText" placeholder="Customer's feedback or complaint" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Assigned To</label>
+                        <input type="text" id="assignedTo" placeholder="Support Team A">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Status *</label>
+                        <select id="status" required>
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Resolved">Resolved</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label>Action Taken</label>
+                        <textarea id="actionTaken" placeholder="What steps were taken to address the issue"></textarea>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label>Solution Provided</label>
+                        <textarea id="solutionProvided" placeholder="Refund, Replacement, Discount, etc."></textarea>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-save">Save Feedback</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let feedbacks = [];
+        let editingIndex = -1;
+
+        // Set today's date as default
+        document.getElementById('dateReceived').valueAsDate = new Date();
+
+        function openModal(index = -1) {
+            editingIndex = index;
+            const modal = document.getElementById('feedbackModal');
+            const form = document.getElementById('feedbackForm');
+            
+            if (index >= 0) {
+                document.getElementById('modalTitle').textContent = 'Edit Feedback';
+                const feedback = feedbacks[index];
+                document.getElementById('dateReceived').value = feedback.date;
+                document.getElementById('orderId').value = feedback.orderId;
+                document.getElementById('productName').value = feedback.product;
+                document.getElementById('customerName').value = feedback.customer;
+                document.getElementById('rating').value = feedback.rating;
+                document.getElementById('feedbackText').value = feedback.feedback;
+                document.getElementById('issueCategory').value = feedback.issueType;
+                document.getElementById('assignedTo').value = feedback.assignedTo;
+                document.getElementById('actionTaken').value = feedback.action;
+                document.getElementById('solutionProvided').value = feedback.solution;
+                document.getElementById('status').value = feedback.status;
+            } else {
+                document.getElementById('modalTitle').textContent = 'Add New Feedback';
+                form.reset();
+                document.getElementById('dateReceived').valueAsDate = new Date();
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('feedbackModal').style.display = 'none';
+            document.getElementById('feedbackForm').reset();
+            editingIndex = -1;
+        }
+
+        document.getElementById('feedbackForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const feedback = {
+                date: document.getElementById('dateReceived').value,
+                orderId: document.getElementById('orderId').value,
+                product: document.getElementById('productName').value,
+                customer: document.getElementById('customerName').value,
+                rating: document.getElementById('rating').value,
+                feedback: document.getElementById('feedbackText').value,
+                issueType: document.getElementById('issueCategory').value,
+                assignedTo: document.getElementById('assignedTo').value,
+                action: document.getElementById('actionTaken').value,
+                solution: document.getElementById('solutionProvided').value,
+                status: document.getElementById('status').value
+            };
+            
+            if (editingIndex >= 0) {
+                feedbacks[editingIndex] = feedback;
+            } else {
+                feedbacks.push(feedback);
+            }
+            
+            renderTable();
+            closeModal();
+        });
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            
+            if (feedbacks.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="13" class="empty-state">
+                            <div class="empty-state-icon">📝</div>
+                            <h3>No feedback entries yet</h3>
+                            <p>Click "Add New Feedback" to start tracking</p>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = feedbacks.map((f, i) => `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>${f.date}</td>
+                        <td>${f.orderId}</td>
+                        <td>${f.product}</td>
+                        <td>${f.customer}</td>
+                        <td>${f.rating}</td>
+                        <td>${f.feedback.substring(0, 50)}${f.feedback.length > 50 ? '...' : ''}</td>
+                        <td>${f.issueType}</td>
+                        <td>${f.assignedTo}</td>
+                        <td>${f.action.substring(0, 40)}${f.action.length > 40 ? '...' : ''}</td>
+                        <td>${f.solution.substring(0, 40)}${f.solution.length > 40 ? '...' : ''}</td>
+                        <td><span class="status-${f.status.toLowerCase().replace(' ', '-')}">${f.status}</span></td>
+                        <td>
+                            <div class="action-btns">
+                                <button class="btn-edit" onclick="openModal(${i})">Edit</button>
+                                <button class="btn-delete" onclick="deleteFeedback(${i})">Delete</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            
+            updateStats();
+        }
+
+        function updateStats() {
+            document.getElementById('totalCount').textContent = feedbacks.length;
+            document.getElementById('pendingCount').textContent = feedbacks.filter(f => f.status === 'Pending').length;
+            document.getElementById('resolvedCount').textContent = feedbacks.filter(f => f.status === 'Resolved').length;
+        }
+
+        function deleteFeedback(index) {
+            if (confirm('Are you sure you want to delete this feedback entry?')) {
+                feedbacks.splice(index, 1);
+                renderTable();
+            }
+        }
+
+        function clearAll() {
+            if (confirm('Are you sure you want to clear all feedback entries? This cannot be undone!')) {
+                feedbacks = [];
+                renderTable();
+            }
+        }
+
+        function downloadExcel() {
+            const data = [
+                [
+                    "S.No",
+                    "Date Received",
+                    "Order ID",
+                    "Product Name/ASIN",
+                    "Customer Name",
+                    "Rating",
+                    "Feedback/Review Text",
+                    "Issue Category",
+                    "Assigned To",
+                    "Action Taken",
+                    "Solution Provided",
+                    "Status"
+                ],
+                ["", "", "", "", "", "", "", "", "", "", "", ""]
+            ];
+
+            feedbacks.forEach((f, i) => {
+                data.push([
+                    i + 1,
+                    f.date,
+                    f.orderId,
+                    f.product,
+                    f.customer,
+                    f.rating,
+                    f.feedback,
+                    f.issueType,
+                    f.assignedTo,
+                    f.action,
+                    f.solution,
+                    f.status
+                ]);
+            });
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            
+            ws['!cols'] = [
+                { wch: 6 },   // S.No
+                { wch: 14 },  // Date
+                { wch: 20 },  // Order ID
+                { wch: 30 },  // Product
+                { wch: 18 },  // Customer
+                { wch: 10 },  // Rating
+                { wch: 45 },  // Feedback
+                { wch: 18 },  // Issue Type
+                { wch: 18 },  // Assigned To
+                { wch: 40 },  // Action
+                { wch: 40 },  // Solution
+                { wch: 12 }   // Status
+            ];
+            
+            XLSX.utils.book_append_sheet(wb, ws, "Feedback Tracker");
+            XLSX.writeFile(wb, "Customer_Negative_Feedback_Tracker.xlsx");
+        }
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('feedbackModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Initialize
+        renderTable();
+    </script>
+</body>
+</html>
